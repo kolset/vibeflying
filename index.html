@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vibeflying — Magic Carpet</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0520; overflow: hidden; font-family: 'Georgia', serif; }
+    #canvas { display: block; width: 100vw; height: 100vh; }
+
+    /* Main Menu */
+    #menu {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(180deg, #0a0520 0%, #1a0a2e 40%, #2d1b00 100%);
+      z-index: 100;
+    }
+    #menu.hidden { display: none; }
+    #menu h1 {
+      font-size: clamp(3rem, 8vw, 6rem);
+      color: #D4AF37;
+      text-shadow: 0 0 40px rgba(212,175,55,0.5);
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25em;
+    }
+    #menu .subtitle {
+      font-size: 1.1rem;
+      color: rgba(212,175,55,0.6);
+      margin-bottom: 3rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    .menu-btn {
+      display: block; width: 260px; margin: 0.5rem auto;
+      padding: 1rem 2rem;
+      background: rgba(212,175,55,0.1);
+      border: 1px solid rgba(212,175,55,0.4);
+      color: #D4AF37;
+      font-size: 1.1rem; font-family: inherit;
+      cursor: pointer; border-radius: 4px;
+      transition: all 0.2s;
+      text-align: center; letter-spacing: 0.1em;
+    }
+    .menu-btn:hover {
+      background: rgba(212,175,55,0.25);
+      border-color: #D4AF37;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(212,175,55,0.3);
+    }
+    .menu-btn.primary { background: rgba(212,175,55,0.2); border-color: #D4AF37; }
+
+    /* HUD */
+    #hud {
+      position: fixed; inset: 0; pointer-events: none;
+      z-index: 50; display: none;
+    }
+    #hud.visible { display: block; }
+
+    .hud-panel {
+      position: absolute;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(212,175,55,0.2);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: #D4AF37;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+    }
+
+    #hud-stats { bottom: 20px; left: 20px; min-width: 140px; }
+    #hud-compass { bottom: 20px; right: 20px; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; }
+    #hud-race { top: 20px; left: 50%; transform: translateX(-50%); text-align: center; display: none; }
+    #hud-race.visible { display: block; }
+
+    .stat-row { display: flex; justify-content: space-between; gap: 1.5rem; margin: 0.2rem 0; }
+    .stat-label { color: rgba(212,175,55,0.6); }
+    .stat-value { font-weight: bold; }
+
+    .bar-container { height: 4px; background: rgba(212,175,55,0.15); border-radius: 2px; margin-top: 0.3rem; overflow: hidden; }
+    .bar-fill { height: 100%; background: #D4AF37; border-radius: 2px; transition: width 0.1s; }
+
+    #compass-arrow { font-size: 1.5rem; transition: transform 0.3s; display: inline-block; }
+
+    #race-timer { font-size: 2rem; font-weight: bold; }
+    #race-gates { font-size: 0.9rem; color: rgba(212,175,55,0.7); margin-top: 0.3rem; }
+    #race-best { font-size: 0.75rem; color: rgba(212,175,55,0.5); }
+
+    /* Tutorial overlay */
+    #tutorial-overlay {
+      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+      z-index: 60; pointer-events: none; display: none;
+    }
+    #tutorial-overlay.visible { display: block; }
+    #tutorial-box {
+      background: rgba(0,0,0,0.7);
+      border: 1px solid rgba(212,175,55,0.5);
+      border-radius: 12px;
+      padding: 1.25rem 2rem;
+      color: #fff;
+      text-align: center;
+      min-width: 320px;
+    }
+    #tutorial-step { font-size: 0.75rem; color: #D4AF37; margin-bottom: 0.5rem; letter-spacing: 0.1em; }
+    #tutorial-text { font-size: 1.1rem; line-height: 1.5; }
+    #tutorial-arrow {
+      font-size: 2rem;
+      position: absolute;
+      animation: bounce 1s infinite;
+    }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+    /* Mobile joystick */
+    #joystick-zone {
+      position: fixed; bottom: 0; left: 0;
+      width: 200px; height: 200px;
+      z-index: 55; display: none;
+    }
+    @media (pointer: coarse) { #joystick-zone { display: block; } }
+
+    /* Notification */
+    #notification {
+      position: fixed; top: 20px; right: 20px;
+      background: rgba(212,175,55,0.15);
+      border: 1px solid rgba(212,175,55,0.4);
+      color: #D4AF37;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      z-index: 70;
+      font-family: Georgia, serif;
+      transform: translateX(200%);
+      transition: transform 0.3s;
+    }
+    #notification.show { transform: translateX(0); }
+
+    /* Wind boost flash */
+    #wind-boost {
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse at center, rgba(212,175,55,0.15) 0%, transparent 70%);
+      z-index: 45; pointer-events: none;
+      opacity: 0; transition: opacity 0.3s;
+    }
+    #wind-boost.active { opacity: 1; }
+
+    /* Loading */
+    #loading {
+      position: fixed; inset: 0;
+      background: #0a0520;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 200; color: #D4AF37;
+    }
+    #loading.hidden { display: none; }
+    #loading-text { font-size: 1.2rem; letter-spacing: 0.2em; margin-bottom: 1rem; }
+    #loading-bar { width: 200px; height: 2px; background: rgba(212,175,55,0.2); border-radius: 1px; }
+    #loading-progress { height: 100%; background: #D4AF37; border-radius: 1px; transition: width 0.3s; width: 0%; }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div id="loading-text">VIBEFLYING</div>
+    <div id="loading-bar"><div id="loading-progress"></div></div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <div id="menu">
+    <h1>✦ Vibeflying</h1>
+    <p class="subtitle">Magic Carpet Adventure</p>
+    <button class="menu-btn primary" onclick="window.startMode('explore')">✦ Explore</button>
+    <button class="menu-btn" onclick="window.startMode('race')">⏱ Daily Race</button>
+    <button class="menu-btn" onclick="window.startMode('tutorial')">◎ Tutorial</button>
+  </div>
+
+  <div id="hud">
+    <div id="hud-stats" class="hud-panel">
+      <div class="stat-row"><span class="stat-label">SPEED</span><span class="stat-value" id="stat-speed">0</span></div>
+      <div class="bar-container"><div class="bar-fill" id="bar-speed" style="width:0%"></div></div>
+      <div class="stat-row" style="margin-top:0.5rem"><span class="stat-label">ALT</span><span class="stat-value" id="stat-alt">0m</span></div>
+      <div class="bar-container"><div class="bar-fill" id="bar-alt" style="width:0%"></div></div>
+    </div>
+    <div id="hud-compass" class="hud-panel">
+      <span id="compass-arrow">↑</span>
+    </div>
+    <div id="hud-race" class="hud-panel">
+      <div id="race-timer">0:00.0</div>
+      <div id="race-gates">Gate 0 / 10</div>
+      <div id="race-best"></div>
+    </div>
+  </div>
+
+  <div id="tutorial-overlay">
+    <div id="tutorial-box">
+      <div id="tutorial-step">STEP 1 / 5</div>
+      <div id="tutorial-text">Tilt to steer</div>
+    </div>
+  </div>
+
+  <div id="wind-boost"></div>
+  <div id="notification"></div>
+  <div id="joystick-zone"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

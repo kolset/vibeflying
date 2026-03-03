@@ -1,0 +1,45 @@
+export class HUD {
+  constructor() {
+    this.el = document.getElementById('hud');
+    this.speedEl = document.getElementById('stat-speed');
+    this.altEl = document.getElementById('stat-alt');
+    this.barSpeed = document.getElementById('bar-speed');
+    this.barAlt = document.getElementById('bar-alt');
+    this.compassArrow = document.getElementById('compass-arrow');
+    this.visible = false;
+  }
+
+  show() {
+    if (this.el) {
+      this.el.classList.add('visible');
+      this.visible = true;
+    }
+  }
+
+  hide() {
+    if (this.el) {
+      this.el.classList.remove('visible');
+      this.visible = false;
+    }
+  }
+
+  update(speed, altitude, windAngle, mode) {
+    if (!this.visible) return;
+
+    // Speed display
+    const speedVal = Math.round(speed * 3.6); // m/s → km/h-ish
+    if (this.speedEl) this.speedEl.textContent = speedVal;
+    if (this.barSpeed) this.barSpeed.style.width = Math.min(100, speedVal * 1.5) + '%';
+
+    // Altitude
+    const altVal = Math.round(altitude);
+    if (this.altEl) this.altEl.textContent = altVal + 'm';
+    if (this.barAlt) this.barAlt.style.width = Math.min(100, altVal / 3) + '%';
+
+    // Wind compass arrow — points toward nearest wind zone
+    if (this.compassArrow) {
+      const deg = (windAngle * 180 / Math.PI);
+      this.compassArrow.style.transform = `rotate(${deg}deg)`;
+    }
+  }
+}
