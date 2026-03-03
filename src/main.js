@@ -56,16 +56,9 @@ const bloomPass = new UnrealBloomPass(
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 
-// ── Lighting (neutral daylight — tiles have baked detail) ─
-const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
-sunLight.position.set(200, 400, 100);
-scene.add(sunLight);
-
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+// ── Lighting (minimal — tiles have baked lighting) ────────
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
 scene.add(ambientLight);
-
-const fillLight = new THREE.HemisphereLight(0x87CEEB, 0x8B7355, 0.4);
-scene.add(fillLight);
 
 // ── World modules (google tiles deferred to startMode) ──
 const wind = new Wind(scene);
