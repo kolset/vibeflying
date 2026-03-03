@@ -61,10 +61,10 @@ export class HUD {
     // Speed display
     const speedVal = Math.round(speed * 3.6); // m/s → km/h-ish
     if (this.speedEl) this.speedEl.textContent = speedVal;
-    if (this.barSpeed) this.barSpeed.style.width = Math.min(100, (speed / 400) * 100) + '%';
+    if (this.barSpeed) this.barSpeed.style.width = Math.min(100, (speed / 120) * 100) + '%';
 
     // Speed-reactive HUD border glow
-    const sf = Math.min(1, speed / 400);
+    const sf = Math.min(1, speed / 120);
     if (sf > 0.6 && this.el) {
       const g = Math.round(255 * (sf - 0.6) / 0.4);
       this.el.style.setProperty('--hud-glow', `rgba(255,${175-g},55,${0.3+sf*0.5})`);

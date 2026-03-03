@@ -47,7 +47,7 @@ export class Carpet {
 
     // Physics state
     this.position = new THREE.Vector3(0, 80, 0);
-    this.velocity = new THREE.Vector3(0, 0, 25); // start moving forward
+    this.velocity = new THREE.Vector3(0, 0, 15); // start moving forward
     this.speed = 0;
     this.pitch = 0;   // nose up/down angle (radians)
     this.yaw = 0;     // heading angle
@@ -61,13 +61,13 @@ export class Carpet {
     this.inWindZone = false;
     this.boostTimer = 0;
 
-    // Config
-    this.DRAG        = 0.07;
-    this.GRAVITY     = 4.0;
-    this.STEER_SPEED = 1.4;
+    // Config — carpet glide feel (not rocket)
+    this.DRAG        = 0.18;   // natural aero drag
+    this.GRAVITY     = 3.0;   // floaty
+    this.STEER_SPEED = 1.2;
     this.PITCH_SPEED = 0.8;
-    this.MAX_SPEED   = 400;
-    this.WIND_BOOST  = 120;
+    this.MAX_SPEED   = 120;   // ~430 km/h at absolute max
+    this.WIND_BOOST  = 32;    // wind gives nice surge, not instant max
     this.CAM_DIST    = 22;
     this.BASE_FOV    = 65;
 
@@ -270,7 +270,7 @@ export class Carpet {
 
   reset() {
     this.position.set(0, 80, 0);
-    this.velocity.set(0, 0, 25);
+    this.velocity.set(0, 0, 15);
     this.yaw = 0;
     this.pitch = 0;
     this.roll = 0;
@@ -312,16 +312,16 @@ export class Carpet {
     // Drag
     this.velocity.multiplyScalar(1 - this.DRAG * dt);
 
-    // Propulsion: pitch down = speed gain, pitch up = altitude gain
+    // Propulsion: always gliding forward, nose down = faster
     const pitchFactor = -this.pitch; // nose down = speed
-    this.velocity.addScaledVector(fwd, (12.0 + pitchFactor * 18) * dt);
+    this.velocity.addScaledVector(fwd, (7.0 + pitchFactor * 10) * dt);
 
     // Gravity on vertical component
     this.velocity.y -= this.GRAVITY * dt;
 
-    // Altitude maintenance: speed gives lift
+    // Altitude maintenance: speed gives lift — carpet needs momentum to stay up
     const speed = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).length();
-    const lift  = Math.max(0, speed - 8) * 0.5;
+    const lift  = Math.max(0, speed - 6) * 0.38;
     this.velocity.y += lift * dt;
 
     // Wind boost

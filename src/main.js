@@ -8,6 +8,7 @@ import { MapTerrain } from './world/map-terrain.js';
 import { Sky } from './world/sky.js';
 import { Wind } from './world/wind.js';
 import { Particles } from './world/particles.js';
+import { Buildings } from './world/buildings.js';
 import { HUD } from './ui/hud.js';
 import { Menu } from './ui/menu.js';
 import { ExploreMode } from './modes/explore.js';
@@ -66,11 +67,12 @@ scene.add(ambientLight);
 const fillLight = new THREE.HemisphereLight(0x8844aa, 0xc87020, 0.4);
 scene.add(fillLight);
 
-// ── World modules (terrain deferred to startMode) ─────────
+// ── World modules (terrain + buildings deferred to startMode) ─
 const sky = new Sky(scene);
 const wind = new Wind(scene);
 const particles = new Particles(scene);
 let terrain = null;
+let buildings = null;
 
 // ── Carpet (player) ───────────────────────────────────────
 const carpet = new Carpet(scene, camera, wind);
@@ -101,10 +103,13 @@ window.startMode = (modeName) => {
   hud.show();
   hud.showControls();
 
-  // Recreate terrain with selected location
+  // Recreate terrain + buildings for selected location
   if (terrain) terrain.dispose();
+  if (buildings) buildings.dispose();
   const loc = LOCATIONS[selectedLocKey];
   terrain = new MapTerrain(scene, loc.lat, loc.lng, loc.color);
+  buildings = new Buildings(scene);
+  buildings.load(loc.lat, loc.lng); // async — buildings appear after a few seconds
 
   currentMode = modes[modeName];
   carpet.reset();
