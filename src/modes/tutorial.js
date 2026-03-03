@@ -54,7 +54,7 @@ export class TutorialMode {
     const overlay = document.getElementById('tutorial-overlay');
     if (overlay) overlay.classList.add('visible');
 
-    this.carpet.position.set(0, 80, 0);
+    this.carpet.position.set(0, 120, 0);
     this.carpet.velocity.set(0, 0, 8);
 
     // Track shift key for step 4

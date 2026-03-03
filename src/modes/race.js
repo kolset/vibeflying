@@ -45,7 +45,7 @@ export class RaceMode {
     this._showNotification('⏱ Daily Race — Fly through 10 gates!');
 
     // Position at start
-    this.carpet.position.set(0, 80, 0);
+    this.carpet.position.set(0, 120, 0);
     this.carpet.velocity.set(0, 0, 12);
   }
 

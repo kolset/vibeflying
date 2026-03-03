@@ -46,7 +46,7 @@ export class Carpet {
     this.wind = wind;
 
     // Physics state
-    this.position = new THREE.Vector3(0, 80, 0);
+    this.position = new THREE.Vector3(0, 120, 0);
     this.velocity = new THREE.Vector3(0, 0, 15); // start moving forward
     this.speed = 0;
     this.pitch = 0;   // nose up/down angle (radians)
@@ -269,7 +269,7 @@ export class Carpet {
   }
 
   reset() {
-    this.position.set(0, 80, 0);
+    this.position.set(0, 120, 0);
     this.velocity.set(0, 0, 15);
     this.yaw = 0;
     this.pitch = 0;
@@ -352,8 +352,8 @@ export class Carpet {
     this.position.addScaledVector(this.velocity, dt);
 
     // Ground clamp (don't go below y=3)
-    if (this.position.y < 3) {
-      this.position.y = 3;
+    if (this.position.y < 5) {
+      this.position.y = 5;
       this.velocity.y = Math.max(0, this.velocity.y);
     }
 

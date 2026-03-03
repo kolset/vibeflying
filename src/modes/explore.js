@@ -14,7 +14,7 @@ export class ExploreMode {
     this._showNotification('✦ Explore — Ride the wind currents, discover floating islands');
 
     // Position carpet nicely for explore
-    this.carpet.position.set(0, 80, 0);
+    this.carpet.position.set(0, 120, 0);
     this.carpet.velocity.set(0, 0, 10);
   }
 

@@ -4,11 +4,10 @@ import { RenderPass }     from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass }     from 'three/addons/postprocessing/OutputPass.js';
 import { Carpet } from './carpet.js';
-import { MapTerrain } from './world/map-terrain.js';
 import { Sky } from './world/sky.js';
 import { Wind } from './world/wind.js';
 import { Particles } from './world/particles.js';
-import { Buildings } from './world/buildings.js';
+import { GoogleTiles3D } from './world/google-tiles.js';
 import { HUD } from './ui/hud.js';
 import { Menu } from './ui/menu.js';
 import { ExploreMode } from './modes/explore.js';
@@ -28,9 +27,11 @@ const LOCATIONS = {
 };
 let selectedLocKey = 'oslo';
 
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
 // ── Renderer ──────────────────────────────────────────────
 const canvas = document.getElementById('canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -38,10 +39,10 @@ renderer.toneMappingExposure = 1.2;
 
 // ── Scene ─────────────────────────────────────────────────
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x1a0a2e, 0.00015);
+scene.fog = new THREE.FogExp2(0x1a0a2e, 0.00008);
 
 // ── Camera ────────────────────────────────────────────────
-const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 15000);
+const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 100000);
 camera.position.set(0, 80, -20);
 
 // ── Post-processing ───────────────────────────────────────
@@ -49,30 +50,29 @@ const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.9,   // strength
+  0.7,   // strength
   0.5,   // radius
-  0.15   // threshold
+  0.35   // threshold
 );
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 
 // ── Lighting ─────────────────────────────────────────────
-const sunLight = new THREE.DirectionalLight(0xffd280, 2.0);
+const sunLight = new THREE.DirectionalLight(0xffd280, 0.8);
 sunLight.position.set(200, 300, 100);
 scene.add(sunLight);
 
-const ambientLight = new THREE.AmbientLight(0x301850, 0.8);
+const ambientLight = new THREE.AmbientLight(0x301850, 1.0);
 scene.add(ambientLight);
 
 const fillLight = new THREE.HemisphereLight(0x8844aa, 0xc87020, 0.4);
 scene.add(fillLight);
 
-// ── World modules (terrain + buildings deferred to startMode) ─
+// ── World modules (google tiles deferred to startMode) ──
 const sky = new Sky(scene);
 const wind = new Wind(scene);
 const particles = new Particles(scene);
-let terrain = null;
-let buildings = null;
+let googleTiles = null;
 
 // ── Carpet (player) ───────────────────────────────────────
 const carpet = new Carpet(scene, camera, wind);
@@ -103,13 +103,10 @@ window.startMode = (modeName) => {
   hud.show();
   hud.showControls();
 
-  // Recreate terrain + buildings for selected location
-  if (terrain) terrain.dispose();
-  if (buildings) buildings.dispose();
+  // Recreate Google 3D Tiles for selected location
+  if (googleTiles) googleTiles.dispose();
   const loc = LOCATIONS[selectedLocKey];
-  terrain = new MapTerrain(scene, loc.lat, loc.lng, loc.color);
-  buildings = new Buildings(scene);
-  buildings.load(loc.lat, loc.lng); // async — buildings appear after a few seconds
+  googleTiles = new GoogleTiles3D(scene, camera, renderer, loc.lat, loc.lng, GOOGLE_MAPS_API_KEY);
 
   currentMode = modes[modeName];
   carpet.reset();
@@ -140,8 +137,10 @@ function animate() {
     hud.update(carpet.speed, carpet.position.y, wind.nearestAngle(carpet.position), currentMode);
   }
 
-  if (terrain) terrain.follow(carpet.position);
-  if (buildings) buildings.follow(carpet.position);
+  if (googleTiles) {
+    camera.updateMatrixWorld();
+    googleTiles.update();
+  }
 
   composer.render();
 }
@@ -152,6 +151,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
+  if (googleTiles) googleTiles.onResize();
 });
 
 // ── Boot ──────────────────────────────────────────────────
