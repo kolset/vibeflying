@@ -61,13 +61,13 @@ export class Carpet {
     this.inWindZone = false;
     this.boostTimer = 0;
 
-    // Config — carpet glide feel (not rocket)
-    this.DRAG        = 0.18;   // natural aero drag
-    this.GRAVITY     = 3.0;   // floaty
+    // Config — carpet glide feel
+    this.DRAG        = 0.18;
+    this.GRAVITY     = 4.0;
     this.STEER_SPEED = 1.2;
     this.PITCH_SPEED = 0.8;
-    this.MAX_SPEED   = 120;   // ~430 km/h at absolute max
-    this.WIND_BOOST  = 32;    // wind gives nice surge, not instant max
+    this.MAX_SPEED   = 120;
+    this.WIND_BOOST  = 32;
     this.CAM_DIST    = 22;
     this.BASE_FOV    = 65;
 
@@ -319,9 +319,10 @@ export class Carpet {
     // Gravity on vertical component
     this.velocity.y -= this.GRAVITY * dt;
 
-    // Altitude maintenance: speed gives lift — carpet needs momentum to stay up
+    // Altitude maintenance: speed gives lift — balanced so carpet glides level at ~38 m/s
+    // At cruise: (38-10)*0.14 = 3.9 ≈ GRAVITY(4.0) → level flight
     const speed = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).length();
-    const lift  = Math.max(0, speed - 6) * 0.38;
+    const lift  = Math.max(0, speed - 10) * 0.14;
     this.velocity.y += lift * dt;
 
     // Wind boost
