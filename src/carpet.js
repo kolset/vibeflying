@@ -110,6 +110,53 @@ export class Carpet {
     this.group.add(this.mesh);
     this.group.add(this.border);
     this.scene.add(this.group);
+
+    this._buildFlag();
+  }
+
+  _buildFlag() {
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xD4AF37, metalness: 0.8, roughness: 0.2 });
+
+    // Pole — slender gold cylinder at the nose of the carpet
+    // Carpet nose is at group z=+3; pole sits just inside at z=+2.8
+    const poleGeo = new THREE.CylinderGeometry(0.03, 0.04, 1.6, 8);
+    this.flagPole = new THREE.Mesh(poleGeo, goldMat);
+    this.flagPole.position.set(0, 1.0, 2.8); // pole center; extends from y=0.2 to y=1.8
+    this.group.add(this.flagPole);
+
+    // Decorative finial on top
+    const finialGeo = new THREE.SphereGeometry(0.07, 8, 6);
+    const finial = new THREE.Mesh(finialGeo, goldMat);
+    finial.position.set(0, 1.87, 2.8);
+    this.group.add(finial);
+
+    // Flag fabric — red, extends from pole (+X direction), sits at top of pole
+    const flagGeo = new THREE.PlaneGeometry(0.85, 0.5, 8, 4);
+    // Shift vertices so left edge (x = -0.425) is at the pole rather than center
+    const flagPos = flagGeo.attributes.position;
+    for (let i = 0; i < flagPos.count; i++) {
+      flagPos.setX(i, flagPos.getX(i) + 0.425);
+    }
+    flagPos.needsUpdate = true;
+    flagGeo.computeVertexNormals();
+
+    // Store original X for waving math
+    this._flagOrigX = new Float32Array(flagPos.count);
+    for (let i = 0; i < flagPos.count; i++) {
+      this._flagOrigX[i] = flagPos.getX(i);
+    }
+
+    const flagMat = new THREE.MeshStandardMaterial({
+      color: 0xCC1A00,
+      side: THREE.DoubleSide,
+      roughness: 0.75,
+      emissive: 0x440000,
+      emissiveIntensity: 0.25,
+    });
+
+    this.flagMesh = new THREE.Mesh(flagGeo, flagMat);
+    this.flagMesh.position.set(0, 1.75, 2.8); // base of flag at top of pole
+    this.group.add(this.flagMesh);
   }
 
   _buildCarpetGlow() {
@@ -254,6 +301,18 @@ export class Carpet {
     }
     carpetPos.needsUpdate = true;
     this.mesh.geometry.computeVertexNormals();
+
+    // Flag wave — displacement increases from pole (u=0) to free end (u=1)
+    if (this.flagMesh) {
+      const flagPos = this.flagMesh.geometry.attributes.position;
+      for (let i = 0; i < flagPos.count; i++) {
+        const u = this._flagOrigX[i] / 0.85; // 0 at pole, 1 at tip
+        const wave = u * u * Math.sin(u * Math.PI * 2.5 + t * 9) * 0.18;
+        flagPos.setZ(i, wave);
+      }
+      flagPos.needsUpdate = true;
+      this.flagMesh.geometry.computeVertexNormals();
+    }
 
     // ── Camera follow ─────────────────────────────────────
     this._updateCamera(dt);
