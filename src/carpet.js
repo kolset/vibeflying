@@ -87,11 +87,13 @@ export class Carpet {
     }
     geo.computeVertexNormals();
 
-    // Rich carpet material — deep red/gold
+    // Rich carpet material — bright crimson with subtle glow
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x8B1A1A,
-      roughness: 0.7,
+      color: 0xC0392B,
+      roughness: 0.5,
       metalness: 0.1,
+      emissive: 0x4A1010,
+      emissiveIntensity: 0.3,
       side: THREE.DoubleSide,
     });
 
@@ -241,7 +243,7 @@ export class Carpet {
     this.group.position.copy(this.position);
     this.group.rotation.y = this.yaw;
     this.group.rotation.z = this.roll;
-    this.group.rotation.x = -this.pitch - Math.PI / 2 + Math.PI; // flat + pitch
+    this.group.rotation.x = -this.pitch; // mesh already lays flat; group only needs dynamic pitch
 
     // Subtle carpet flutter
     const t = performance.now() * 0.001;

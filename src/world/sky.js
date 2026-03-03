@@ -17,14 +17,14 @@ export class Sky {
 
   _buildSky() {
     // Large sphere with gradient shader
-    const geo = new THREE.SphereGeometry(3000, 32, 16);
+    const geo = new THREE.SphereGeometry(60000, 32, 16);
     const mat = new THREE.ShaderMaterial({
       side: THREE.BackSide,
       uniforms: {
-        topColor:    { value: new THREE.Color(0x0a0520) },
-        midColor:    { value: new THREE.Color(0x1a0a2e) },
-        horizColor:  { value: new THREE.Color(0x8B2500) },
-        goldColor:   { value: new THREE.Color(0xC87020) },
+        topColor:    { value: new THREE.Color(0x0d0635) },
+        midColor:    { value: new THREE.Color(0x2d0f5e) },
+        horizColor:  { value: new THREE.Color(0xC2440A) },
+        goldColor:   { value: new THREE.Color(0xE8801A) },
         sunPos:      { value: new THREE.Vector3(0.5, 0.3, -1).normalize() },
       },
       vertexShader: `
@@ -49,12 +49,12 @@ export class Sky {
 
           // Sun halo
           float sunDot = dot(dir, sunPos);
-          float sunGlow = pow(max(0.0, sunDot), 30.0) * 2.0;
+          float sunGlow = pow(max(0.0, sunDot), 20.0) * 2.0;
           float sunHalo = pow(max(0.0, sunDot), 6.0) * 0.4;
           col += vec3(1.0, 0.7, 0.3) * (sunGlow + sunHalo);
 
           // Stars (top of sky)
-          float starField = step(0.997, fract(sin(dot(dir * 300.0, vec3(12.9898, 78.233, 45.0))) * 43758.5453));
+          float starField = step(0.994, fract(sin(dot(dir * 300.0, vec3(12.9898, 78.233, 45.0))) * 43758.5453));
           col += vec3(0.8, 0.7, 1.0) * starField * max(0.0, dir.y - 0.3) * 2.0;
 
           gl_FragColor = vec4(col, 1.0);

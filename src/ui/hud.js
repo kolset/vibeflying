@@ -6,7 +6,15 @@ export class HUD {
     this.barSpeed = document.getElementById('bar-speed');
     this.barAlt = document.getElementById('bar-alt');
     this.compassArrow = document.getElementById('compass-arrow');
+    this.controlsPanel = document.getElementById('controls-panel');
     this.visible = false;
+    this._controlsTimer = null;
+    this._controlsPinned = false;
+
+    // H key toggles the controls panel
+    document.addEventListener('keydown', e => {
+      if (e.code === 'KeyH') this.toggleControls();
+    });
   }
 
   show() {
@@ -20,6 +28,30 @@ export class HUD {
     if (this.el) {
       this.el.classList.remove('visible');
       this.visible = false;
+    }
+  }
+
+  /** Show the controls panel for `duration` ms, then auto-hide. */
+  showControls(duration = 8000) {
+    if (!this.controlsPanel) return;
+    this._controlsPinned = false;
+    this.controlsPanel.style.opacity = '1';
+    if (this._controlsTimer) clearTimeout(this._controlsTimer);
+    this._controlsTimer = setTimeout(() => {
+      if (!this._controlsPinned) {
+        this.controlsPanel.style.opacity = '0';
+      }
+    }, duration);
+  }
+
+  /** H key: toggle controls panel on/off. */
+  toggleControls() {
+    if (!this.controlsPanel) return;
+    this._controlsPinned = !this._controlsPinned;
+    this.controlsPanel.style.opacity = this._controlsPinned ? '1' : '0';
+    if (this._controlsTimer) {
+      clearTimeout(this._controlsTimer);
+      this._controlsTimer = null;
     }
   }
 

@@ -202,6 +202,21 @@
   <div id="notification"></div>
   <div id="joystick-zone"></div>
 
+  <div id="controls-panel" class="hud-panel" style="
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    display:grid; grid-template-columns:auto auto; gap:4px 20px;
+    font-size:0.75rem; pointer-events:none;
+    opacity:0; transition:opacity 0.5s; white-space:nowrap;
+  ">
+    <span class="stat-label">W / ↑</span><span>Pitch up</span>
+    <span class="stat-label">S / ↓</span><span>Pitch down</span>
+    <span class="stat-label">A / ←</span><span>Bank left</span>
+    <span class="stat-label">D / →</span><span>Bank right</span>
+    <span class="stat-label">Shift</span><span>Wind boost</span>
+    <span class="stat-label">H</span><span>Toggle controls</span>
+    <span class="stat-label">Drag</span><span>Orbit camera</span>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

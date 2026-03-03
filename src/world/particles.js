@@ -10,7 +10,8 @@ export class Particles {
     this.velocities = [];
     this.head = 0;
     this.emitTimer = 0;
-    this.EMIT_RATE = 0.016; // every frame ~60fps
+    this.time = 0;
+    this.EMIT_RATE = 0.010; // denser trail
 
     // Init velocities
     for (let i = 0; i < TRAIL_COUNT; i++) {
@@ -52,6 +53,7 @@ export class Particles {
   }
 
   update(dt, carpetPos, carpetVel) {
+    this.time += dt;
     this.emitTimer += dt;
 
     // Emit new particles from carpet position
@@ -94,5 +96,8 @@ export class Particles {
     }
 
     this.geometry.attributes.position.needsUpdate = true;
+
+    // Pulse shared opacity for trail shimmer effect
+    this.points.material.opacity = 0.65 + Math.sin(this.time * 4) * 0.25;
   }
 }

@@ -115,7 +115,7 @@ export class Wind {
         const flow = ((this.time * 8 + offsets[i] * 80) % 80) - 40;
         const spread = 8;
         const perp1 = (offsets[i] - 0.5) * spread * 2;
-        const perp2 = (Math.fract ? Math.fract(offsets[i] * 7.3) : (offsets[i] * 7.3 % 1) - 0.5) * spread * 2;
+        const perp2 = ((offsets[i] * 7.3) % 1 - 0.5) * spread * 2;
 
         const perpA = new THREE.Vector3(1, 0, 0);
         if (Math.abs(zone.direction.x) > 0.9) perpA.set(0, 1, 0);
