@@ -62,17 +62,59 @@ export class Carpet {
     this.boostTimer = 0;
 
     // Config
-    this.DRAG = 0.35;
-    this.GRAVITY = 4.0;
+    this.DRAG        = 0.22;
+    this.GRAVITY     = 4.0;
     this.STEER_SPEED = 1.2;
     this.PITCH_SPEED = 0.8;
-    this.MAX_SPEED = 60;
-    this.WIND_BOOST = 18;
-    this.CAM_DIST = 22;
+    this.MAX_SPEED   = 150;
+    this.WIND_BOOST  = 45;
+    this.CAM_DIST    = 22;
+    this.BASE_FOV    = 65;
 
     this._buildMesh();
     this._buildCarpetGlow();
     this._initJoystick();
+  }
+
+  _buildCarpetTexture() {
+    const S = 512;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = S;
+    const ctx = cv.getContext('2d');
+
+    ctx.fillStyle = '#8B1A1A'; ctx.fillRect(0, 0, S, S);
+
+    // Gold diamond lattice
+    ctx.strokeStyle = '#D4AF37'; ctx.lineWidth = 2;
+    const H = 32;
+    for (let row = -1; row < S/H+2; row++) {
+      for (let col = -1; col < S/H+2; col++) {
+        const cx = col*H, cy = row*H;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy-H/2); ctx.lineTo(cx+H/2, cy);
+        ctx.lineTo(cx, cy+H/2); ctx.lineTo(cx-H/2, cy);
+        ctx.closePath(); ctx.stroke();
+      }
+    }
+
+    // Center medallion
+    ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i/8)*Math.PI*2 - Math.PI/8;
+      const p = [S/2 + Math.cos(a)*80, S/2 + Math.sin(a)*80];
+      i===0 ? ctx.moveTo(...p) : ctx.lineTo(...p);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.strokeStyle = '#C8960C'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(S/2, S/2, 40, 0, Math.PI*2); ctx.stroke();
+
+    // Border
+    ctx.strokeStyle = '#D4AF37';
+    ctx.lineWidth = 8; ctx.strokeRect(10, 10, S-20, S-20);
+    ctx.lineWidth = 3; ctx.strokeRect(20, 20, S-40, S-40);
+
+    return new THREE.CanvasTexture(cv);
   }
 
   _buildMesh() {
@@ -87,13 +129,15 @@ export class Carpet {
     }
     geo.computeVertexNormals();
 
-    // Rich carpet material — bright crimson with subtle glow
+    // Persian carpet texture with emissive gold bloom
+    const carpetTex = this._buildCarpetTexture();
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xC0392B,
-      roughness: 0.5,
-      metalness: 0.1,
-      emissive: 0x4A1010,
-      emissiveIntensity: 0.3,
+      map: carpetTex,
+      color: 0xffffff,       // white so texture isn't tinted
+      roughness: 0.6,
+      metalness: 0.05,
+      emissive: 0x8B4A00,    // gold emissive for bloom
+      emissiveIntensity: 0.5,
       side: THREE.DoubleSide,
     });
 
@@ -292,22 +336,26 @@ export class Carpet {
     this.group.rotation.z = this.roll;
     this.group.rotation.x = -this.pitch; // mesh already lays flat; group only needs dynamic pitch
 
-    // Subtle carpet flutter
+    // Speed-reactive carpet flutter
     const t = performance.now() * 0.001;
+    const fi = 0.04 + (this.speed / this.MAX_SPEED) * 0.12; // amplitude
+    const ff = 2 + (this.speed / this.MAX_SPEED) * 4;       // frequency
     const carpetPos = this.mesh.geometry.attributes.position;
     for (let i = 0; i < carpetPos.count; i++) {
       const x = carpetPos.getX(i), y = carpetPos.getY(i);
-      carpetPos.setZ(i, Math.sin(x * 1.5 + t * 2) * 0.06 + Math.cos(y * 1.0 + t * 1.5) * 0.04);
+      carpetPos.setZ(i, Math.sin(x*1.5 + t*ff)*fi + Math.cos(y*1.0 + t*ff*0.75)*fi*0.67);
     }
     carpetPos.needsUpdate = true;
     this.mesh.geometry.computeVertexNormals();
 
-    // Flag wave — displacement increases from pole (u=0) to free end (u=1)
+    // Speed-reactive flag wave
     if (this.flagMesh) {
+      const waveAmp  = 0.18 + (this.speed / this.MAX_SPEED) * 0.35;
+      const waveFreq = 9    + (this.speed / this.MAX_SPEED) * 15;
       const flagPos = this.flagMesh.geometry.attributes.position;
       for (let i = 0; i < flagPos.count; i++) {
         const u = this._flagOrigX[i] / 0.85; // 0 at pole, 1 at tip
-        const wave = u * u * Math.sin(u * Math.PI * 2.5 + t * 9) * 0.18;
+        const wave = u * u * Math.sin(u * Math.PI * 2.5 + t * waveFreq) * waveAmp;
         flagPos.setZ(i, wave);
       }
       flagPos.needsUpdate = true;
@@ -319,19 +367,25 @@ export class Carpet {
   }
 
   _updateCamera(dt) {
-    // Orbit camera around carpet
-    const dist = this.CAM_DIST;
+    const sf = this.speed / this.MAX_SPEED; // speed fraction 0..1
+
+    // Pull camera back at speed
+    const dist = this.CAM_DIST + this.speed * 0.15;
+
+    // Widen FOV at speed (65° → 90°)
+    const targetFOV = this.BASE_FOV + sf * 25;
+    this.camera.fov += (targetFOV - this.camera.fov) * 4 * dt;
+    this.camera.updateProjectionMatrix();
+
     const yaw = this.yaw + cameraYaw;
     const pitch = cameraPitch;
-
     const camOffset = new THREE.Vector3(
       -Math.sin(yaw) * Math.cos(pitch) * dist,
       Math.sin(pitch) * dist + 3,
       -Math.cos(yaw) * Math.cos(pitch) * dist
     );
-
     const targetCamPos = this.position.clone().add(camOffset);
-    this.camera.position.lerp(targetCamPos, 5 * dt);
+    this.camera.position.lerp(targetCamPos, (5 + sf * 8) * dt);
     this.camera.lookAt(this.position.clone().add(new THREE.Vector3(0, 2, 0)));
   }
 }

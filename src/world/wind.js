@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const ZONE_COUNT = 8;
+const ZONE_COUNT = 20;
 
 export class Wind {
   constructor(scene) {
@@ -15,21 +15,28 @@ export class Wind {
 
   _createZones() {
     const positions = [
-      [0, 100, 200], [-300, 80, 100], [200, 120, -300],
-      [-150, 90, -200], [400, 110, 50], [-250, 130, 350],
-      [100, 70, 450], [-400, 100, -100],
+      // First 4 zones within 150m of start — player hits them immediately
+      [0,90,120], [80,75,80], [-90,100,60], [50,85,-80],
+      // 8 zones in 150–500m ring
+      [-300,80,100], [200,120,-300], [-150,90,-200], [400,110,50],
+      [-250,130,350], [100,70,450], [-400,100,-100], [300,95,280],
+      // 8 zones in 500–1200m ring
+      [600,140,200], [-700,120,400], [500,160,-600], [-500,130,-400],
+      [800,100,-200], [-600,150,700], [700,110,600], [-800,90,-700],
     ];
     const directions = [
-      [1, 0.1, 0], [-0.7, 0.2, 0.7], [0.5, -0.1, 0.8],
-      [-0.8, 0.1, -0.5], [0.3, 0.2, -0.9], [-0.6, 0.0, 0.7],
-      [0.9, 0.15, 0.2], [-0.4, 0.1, -0.8],
+      [0,0.15,1], [0.7,0.1,0.7], [-0.5,0.2,0.8], [0.3,0.1,-0.9],
+      [-0.7,0.2,0.7], [0.5,-0.1,0.8], [-0.8,0.1,-0.5], [0.3,0.2,-0.9],
+      [-0.6,0.0,0.7], [0.9,0.15,0.2], [-0.4,0.1,-0.8], [0.8,0.05,-0.5],
+      [1,0.1,0], [-1,0.05,0], [0,0.1,1], [0,0.05,-1],
+      [0.7,0.2,0.7], [-0.7,0.1,0.7], [0.7,0.1,-0.7], [-0.7,0.2,-0.7],
     ];
 
     for (let i = 0; i < ZONE_COUNT; i++) {
       this.zones.push({
         center: new THREE.Vector3(...positions[i]),
         direction: new THREE.Vector3(...directions[i]).normalize(),
-        radius: 40 + Math.random() * 30,
+        radius: 100 + Math.random() * 80,
         strength: 1.0,
       });
     }
@@ -44,16 +51,14 @@ export class Wind {
   }
 
   _makeStream(zone) {
-    const count = 200;
+    const count = 400;
     const geo = new THREE.BufferGeometry();
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
-      const t = i / count;
       const spread = 8;
-      // Tube of particles along wind direction
       const along = (Math.random() - 0.5) * 80;
       const perp1 = (Math.random() - 0.5) * spread;
       const perp2 = (Math.random() - 0.5) * spread;
@@ -72,13 +77,12 @@ export class Wind {
       positions[i * 3 + 1] = p.y;
       positions[i * 3 + 2] = p.z;
 
-      // Gold shimmer color
-      const bright = 0.7 + Math.random() * 0.3;
-      colors[i * 3]     = bright;
-      colors[i * 3 + 1] = bright * 0.8;
-      colors[i * 3 + 2] = bright * 0.2;
+      // Brighter near-white gold color
+      colors[i*3]   = 0.9 + Math.random()*0.1;  // near-white
+      colors[i*3+1] = colors[i*3] * 0.9;
+      colors[i*3+2] = colors[i*3] * 0.5;
 
-      sizes[i] = 1.5 + Math.random() * 2.5;
+      sizes[i] = 2.5 + Math.random() * 3.5;
     }
 
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -88,9 +92,9 @@ export class Wind {
     const mat = new THREE.PointsMaterial({
       vertexColors: true,
       sizeAttenuation: true,
-      size: 2,
+      size: 3.5,
       transparent: true,
-      opacity: 0.6,
+      opacity: 0.85,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
@@ -111,8 +115,8 @@ export class Wind {
       const count = pos.count;
 
       for (let i = 0; i < count; i++) {
-        // Animate particles flowing along wind direction
-        const flow = ((this.time * 8 + offsets[i] * 80) % 80) - 40;
+        // Faster flow speed
+        const flow = ((this.time * 20 + offsets[i] * 80) % 80) - 40;
         const spread = 8;
         const perp1 = (offsets[i] - 0.5) * spread * 2;
         const perp2 = ((offsets[i] * 7.3) % 1 - 0.5) * spread * 2;
@@ -132,7 +136,7 @@ export class Wind {
       pos.needsUpdate = true;
 
       // Pulse opacity
-      stream.material.opacity = 0.4 + Math.sin(this.time * 2 + zone.center.x) * 0.15;
+      stream.material.opacity = 0.7 + Math.sin(this.time * 2 + zone.center.x) * 0.15;
     }
   }
 

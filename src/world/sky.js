@@ -94,10 +94,10 @@ export class Sky {
   }
 
   _buildClouds() {
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 50; i++) {
       const cloud = this._makeCloud();
       const angle = Math.random() * Math.PI * 2;
-      const r = 300 + Math.random() * 1200;
+      const r = 200 + Math.random() * 2500;
       cloud.position.set(
         Math.cos(angle) * r,
         60 + Math.random() * 120,
@@ -120,7 +120,7 @@ export class Sky {
 
     const puffs = 3 + Math.floor(Math.random() * 4);
     for (let i = 0; i < puffs; i++) {
-      const r = 6 + Math.random() * 12;
+      const r = 8 + Math.random() * 22;
       const geo = new THREE.SphereGeometry(r, 8, 6);
       const m = new THREE.Mesh(geo, mat);
       m.position.set(

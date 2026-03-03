@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const TRAIL_COUNT = 300;
+const TRAIL_COUNT = 800;
 
 export class Particles {
   constructor(scene) {
@@ -35,12 +35,14 @@ export class Particles {
       colors[i * 3 + 2] = 0.1 + t * 0.15;
     }
     geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.attributes.color.usage = THREE.DynamicDrawUsage; // allow per-frame updates
+    this.colorBuffer = colors; // store reference for speed-reactive updates
 
     this.geometry = geo;
 
     const mat = new THREE.PointsMaterial({
       vertexColors: true,
-      size: 0.8,
+      size: 1.4,
       sizeAttenuation: true,
       transparent: true,
       opacity: 1.0,
@@ -52,16 +54,19 @@ export class Particles {
     this.scene.add(this.points);
   }
 
-  update(dt, carpetPos, carpetVel) {
+  update(dt, carpetPos, carpetVel, speed = 0, maxSpeed = 150) {
     this.time += dt;
     this.emitTimer += dt;
 
+    const sf = Math.min(1, speed / maxSpeed);
+    const dynamicRate = this.EMIT_RATE / (1 + sf * 4); // 5x faster at max speed
+
     // Emit new particles from carpet position
-    if (this.emitTimer >= this.EMIT_RATE) {
+    if (this.emitTimer >= dynamicRate) {
       this.emitTimer = 0;
 
-      // Spawn 2–3 particles per frame
-      const count = 2 + Math.floor(Math.random() * 2);
+      // Spawn 2–7 particles per frame depending on speed
+      const count = 2 + Math.floor(sf * 5);
       for (let j = 0; j < count; j++) {
         const i = this.head % TRAIL_COUNT;
         this.head++;
@@ -76,6 +81,11 @@ export class Particles {
           (Math.random() - 0.5) * 2 - carpetVel.z * 0.1,
         );
         this.alphas[i] = 1.0;
+
+        // Speed-reactive color: gold (0.95,0.80,0.15) → orange (1.0,0.45,0.05)
+        this.colorBuffer[i * 3]     = 0.95 + sf * 0.05;
+        this.colorBuffer[i * 3 + 1] = 0.80 - sf * 0.35;
+        this.colorBuffer[i * 3 + 2] = 0.15 - sf * 0.10;
       }
     }
 
@@ -96,6 +106,7 @@ export class Particles {
     }
 
     this.geometry.attributes.position.needsUpdate = true;
+    this.geometry.attributes.color.needsUpdate = true;
 
     // Pulse shared opacity for trail shimmer effect
     this.points.material.opacity = 0.65 + Math.sin(this.time * 4) * 0.25;

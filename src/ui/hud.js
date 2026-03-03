@@ -61,7 +61,16 @@ export class HUD {
     // Speed display
     const speedVal = Math.round(speed * 3.6); // m/s → km/h-ish
     if (this.speedEl) this.speedEl.textContent = speedVal;
-    if (this.barSpeed) this.barSpeed.style.width = Math.min(100, speedVal * 1.5) + '%';
+    if (this.barSpeed) this.barSpeed.style.width = Math.min(100, (speed / 150) * 100) + '%';
+
+    // Speed-reactive HUD border glow
+    const sf = Math.min(1, speed / 150);
+    if (sf > 0.6 && this.el) {
+      const g = Math.round(255 * (sf - 0.6) / 0.4);
+      this.el.style.setProperty('--hud-glow', `rgba(255,${175-g},55,${0.3+sf*0.5})`);
+    } else if (this.el) {
+      this.el.style.setProperty('--hud-glow', 'rgba(212,175,55,0.2)');
+    }
 
     // Altitude
     const altVal = Math.round(altitude);
