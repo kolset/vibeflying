@@ -114,9 +114,15 @@ window.startMode = (modeName) => {
   currentMode = modes[modeName];
   carpet.reset();
   currentMode.start();
+
+  if (!animating) {
+    animating = true;
+    animate();
+  }
 };
 
 // ── Clock & loop vars ─────────────────────────────────────
+let animating = false;
 const clock = new THREE.Clock();
 
 function animate() {
@@ -135,6 +141,7 @@ function animate() {
   }
 
   if (terrain) terrain.follow(carpet.position);
+  if (buildings) buildings.follow(carpet.position);
 
   composer.render();
 }
@@ -158,9 +165,7 @@ async function boot() {
   }
 
   loading.classList.add('hidden');
-
-  window.startMode('explore');
-  animate();
+  // Menu is visible by default — user picks location + mode
 }
 
 boot();

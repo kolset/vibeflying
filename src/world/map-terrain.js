@@ -2,7 +2,8 @@ import * as THREE from 'three';
 
 const ZOOM = 13;
 const GRID = 5;
-const SEGS = 32;           // 33×33 vertices — fast to compute
+const HALF = Math.floor(GRID / 2);
+const SEGS = 32;
 const ELEVATION_SCALE = 2.0;
 const MAX_CONCURRENT = 6;
 
@@ -27,34 +28,44 @@ export class MapTerrain {
     this.scene.add(this.group);
 
     this.tileSizeM = tileMeters(ZOOM); // ~4891m per tile
-    this.centerTile = latLngToTile(lat, lng, ZOOM);
-    this.tiles = new Map();
+    this.originTile = latLngToTile(lat, lng, ZOOM);
+    this.playerTile = { x: this.originTile.x, y: this.originTile.y };
+    this.tiles = new Map(); // key: "tx,ty" → { mesh, tx, ty }
     this.loadQueue = [];
     this.activeLoads = 0;
     this.placeholderColor = placeholderColor;
 
-    this._initGrid();
+    this._buildGrid();
   }
 
-  _initGrid() {
-    const half = Math.floor(GRID / 2);
-    // Sort center-outward so center loads first
+  _buildGrid() {
     const order = [];
-    for (let dj = -half; dj <= half; dj++) {
-      for (let di = -half; di <= half; di++) {
-        order.push({ di, dj, dist: Math.abs(di) + Math.abs(dj) });
+    for (let dy = -HALF; dy <= HALF; dy++) {
+      for (let dx = -HALF; dx <= HALF; dx++) {
+        order.push({ dx, dy, dist: Math.abs(dx) + Math.abs(dy) });
       }
     }
     order.sort((a, b) => a.dist - b.dist);
 
-    for (const { di, dj } of order) {
-      this._createTile(di, dj);
-      this.loadQueue.push({ di, dj });
+    for (const { dx, dy } of order) {
+      this._addTile(this.playerTile.x + dx, this.playerTile.y + dy);
     }
     this._drainQueue();
   }
 
-  _createTile(di, dj) {
+  _tileKey(tx, ty) { return `${tx},${ty}`; }
+
+  _tileWorldPos(tx, ty) {
+    return {
+      x: (tx - this.originTile.x) * this.tileSizeM,
+      z: (ty - this.originTile.y) * this.tileSizeM,
+    };
+  }
+
+  _addTile(tx, ty) {
+    const key = this._tileKey(tx, ty);
+    if (this.tiles.has(key)) return;
+
     const geo = new THREE.PlaneGeometry(this.tileSizeM, this.tileSizeM, SEGS, SEGS);
     geo.rotateX(-Math.PI / 2);
 
@@ -64,9 +75,21 @@ export class MapTerrain {
     });
 
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(di * this.tileSizeM, 0, dj * this.tileSizeM);
+    const pos = this._tileWorldPos(tx, ty);
+    mesh.position.set(pos.x, 0, pos.z);
     this.group.add(mesh);
-    this.tiles.set(`${di},${dj}`, { mesh });
+    this.tiles.set(key, { mesh, tx, ty });
+    this.loadQueue.push({ tx, ty, key });
+  }
+
+  _removeTile(key) {
+    const entry = this.tiles.get(key);
+    if (!entry) return;
+    if (entry.mesh.material.map) entry.mesh.material.map.dispose();
+    entry.mesh.material.dispose();
+    entry.mesh.geometry.dispose();
+    this.group.remove(entry.mesh);
+    this.tiles.delete(key);
   }
 
   _drainQueue() {
@@ -76,18 +99,18 @@ export class MapTerrain {
     }
   }
 
-  async _loadTile({ di, dj }) {
+  async _loadTile({ tx, ty, key }) {
     this.activeLoads++;
-    const tx = this.centerTile.x + di;
-    const ty = this.centerTile.y + dj;
-    const entry = this.tiles.get(`${di},${dj}`);
-    if (!entry) { this.activeLoads--; return; }
+    if (!this.tiles.has(key)) { this.activeLoads--; this._drainQueue(); return; }
 
-    // Load satellite and elevation in parallel — both fail gracefully
     const [texture, elevs] = await Promise.all([
       this._loadTexture(tx, ty),
       this._loadElevation(tx, ty),
     ]);
+
+    // Tile may have been removed while loading
+    const entry = this.tiles.get(key);
+    if (!entry) { this.activeLoads--; this._drainQueue(); return; }
 
     if (texture) {
       entry.mesh.material.map = texture;
@@ -102,41 +125,34 @@ export class MapTerrain {
     this._drainQueue();
   }
 
-  // THREE.TextureLoader handles CORS correctly — no fetch/blob needed
   _loadTexture(tx, ty) {
     const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${ZOOM}/${ty}/${tx}`;
     return new Promise((resolve) => {
       const loader = new THREE.TextureLoader();
       loader.load(
         url,
-        (tex) => {
-          tex.colorSpace = THREE.SRGBColorSpace;
-          resolve(tex);
-        },
+        (tex) => { tex.colorSpace = THREE.SRGBColorSpace; resolve(tex); },
         undefined,
-        () => resolve(null)  // fail → keep placeholder
+        () => resolve(null)
       );
     });
   }
 
-  // Load elevation PNG with crossOrigin, decode RGB → meters via canvas
   _loadElevation(tx, ty) {
     const url = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${ZOOM}/${tx}/${ty}.png`;
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        const size = SEGS + 1; // 33
+        const size = SEGS + 1;
         const canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
+        canvas.width = size; canvas.height = size;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, size, size);
         try {
           const { data } = ctx.getImageData(0, 0, size, size);
           const elevs = new Float32Array(size * size);
           for (let i = 0; i < size * size; i++) {
-            // Terrarium: elevation = R*256 + G + B/256 - 32768  (meters)
             elevs[i] = (data[i*4]*256 + data[i*4+1] + data[i*4+2]/256 - 32768) * ELEVATION_SCALE;
           }
           resolve(elevs);
@@ -163,20 +179,51 @@ export class MapTerrain {
   }
 
   follow(playerPos) {
-    // Snap terrain group so tiles stay centered under the player
-    const snap = this.tileSizeM * GRID;
-    this.group.position.x = Math.round(playerPos.x / snap) * snap;
-    this.group.position.z = Math.round(playerPos.z / snap) * snap;
+    // Determine which tile the player is over
+    const ptx = this.originTile.x + Math.round(playerPos.x / this.tileSizeM);
+    const pty = this.originTile.y + Math.round(playerPos.z / this.tileSizeM);
+
+    if (ptx === this.playerTile.x && pty === this.playerTile.y) return;
+
+    this.playerTile.x = ptx;
+    this.playerTile.y = pty;
+
+    // Which tiles should exist
+    const needed = new Set();
+    for (let dy = -HALF; dy <= HALF; dy++) {
+      for (let dx = -HALF; dx <= HALF; dx++) {
+        needed.add(this._tileKey(ptx + dx, pty + dy));
+      }
+    }
+
+    // Remove tiles no longer needed
+    for (const key of [...this.tiles.keys()]) {
+      if (!needed.has(key)) this._removeTile(key);
+    }
+
+    // Filter stale load queue entries
+    this.loadQueue = this.loadQueue.filter(item => needed.has(item.key));
+
+    // Add missing tiles (center-outward)
+    const order = [];
+    for (let dy = -HALF; dy <= HALF; dy++) {
+      for (let dx = -HALF; dx <= HALF; dx++) {
+        order.push({ dx, dy, dist: Math.abs(dx) + Math.abs(dy) });
+      }
+    }
+    order.sort((a, b) => a.dist - b.dist);
+    for (const { dx, dy } of order) {
+      this._addTile(ptx + dx, pty + dy);
+    }
+
+    this._drainQueue();
   }
 
   dispose() {
-    for (const [, entry] of this.tiles) {
-      if (entry.mesh.material.map) entry.mesh.material.map.dispose();
-      entry.mesh.material.dispose();
-      entry.mesh.geometry.dispose();
+    for (const key of [...this.tiles.keys()]) {
+      this._removeTile(key);
     }
     this.scene.remove(this.group);
-    this.tiles.clear();
     this.loadQueue = [];
   }
 

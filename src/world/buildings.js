@@ -1,24 +1,40 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-// Query radius in meters — keep small for fast response and sane polygon count
-const RADIUS_M = 1200;
-const MAX_ELEMENTS = 2500;
+const RADIUS_M = 2000;
+const MAX_ELEMENTS = 3000;
+const RELOAD_DIST = 1500;
 
 export class Buildings {
   constructor(scene) {
     this.scene = scene;
     this.mesh = null;
+    this.originLat = 0;
+    this.originLng = 0;
+    this.lastLoadX = 0;
+    this.lastLoadZ = 0;
+    this._loading = false;
   }
 
   async load(centerLat, centerLng) {
-    const dLat = RADIUS_M / 111320;
-    const dLng = RADIUS_M / (111320 * Math.cos(centerLat * Math.PI / 180));
+    this.originLat = centerLat;
+    this.originLng = centerLng;
+    this.lastLoadX = 0;
+    this.lastLoadZ = 0;
+    await this._fetch(centerLat, centerLng);
+  }
 
-    const s = centerLat - dLat;
-    const n = centerLat + dLat;
-    const w = centerLng - dLng;
-    const e = centerLng + dLng;
+  async _fetch(queryLat, queryLng) {
+    if (this._loading) return;
+    this._loading = true;
+
+    const dLat = RADIUS_M / 111320;
+    const dLng = RADIUS_M / (111320 * Math.cos(queryLat * Math.PI / 180));
+
+    const s = queryLat - dLat;
+    const n = queryLat + dLat;
+    const w = queryLng - dLng;
+    const e = queryLng + dLng;
 
     const query =
       `[out:json][timeout:25];way["building"](${s},${w},${n},${e});out geom ${MAX_ELEMENTS};`;
@@ -28,9 +44,40 @@ export class Buildings {
         `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`
       );
       const { elements = [] } = await res.json();
-      this._build(elements, centerLat, centerLng);
+
+      // Dispose old mesh
+      if (this.mesh) {
+        this.mesh.geometry.dispose();
+        this.mesh.material.dispose();
+        this.scene.remove(this.mesh);
+        this.mesh = null;
+      }
+
+      this._build(elements, this.originLat, this.originLng);
     } catch (err) {
       console.warn('Buildings load failed:', err.message);
+    }
+    this._loading = false;
+  }
+
+  /** Call every frame — reloads buildings when player moves far enough */
+  follow(playerPos) {
+    if (this._loading) return;
+
+    const dx = playerPos.x - this.lastLoadX;
+    const dz = playerPos.z - this.lastLoadZ;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist > RELOAD_DIST) {
+      this.lastLoadX = playerPos.x;
+      this.lastLoadZ = playerPos.z;
+
+      // Convert game position to lat/lng
+      const R = 6371000;
+      const lat = this.originLat - (playerPos.z / (R * Math.PI / 180));
+      const lng = this.originLng + (playerPos.x / (R * Math.PI / 180 * Math.cos(this.originLat * Math.PI / 180)));
+
+      this._fetch(lat, lng);
     }
   }
 
