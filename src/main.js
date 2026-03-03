@@ -4,7 +4,6 @@ import { RenderPass }     from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass }     from 'three/addons/postprocessing/OutputPass.js';
 import { Carpet } from './carpet.js';
-import { Sky } from './world/sky.js';
 import { Wind } from './world/wind.js';
 import { Particles } from './world/particles.js';
 import { GoogleTiles3D } from './world/google-tiles.js';
@@ -39,7 +38,7 @@ renderer.toneMappingExposure = 1.2;
 
 // ── Scene ─────────────────────────────────────────────────
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x1a0a2e, 0.00008);
+scene.background = new THREE.Color(0x87CEEB); // clear sky blue
 
 // ── Camera ────────────────────────────────────────────────
 const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 1, 100000);
@@ -57,19 +56,18 @@ const bloomPass = new UnrealBloomPass(
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 
-// ── Lighting ─────────────────────────────────────────────
-const sunLight = new THREE.DirectionalLight(0xffd280, 0.8);
-sunLight.position.set(200, 300, 100);
+// ── Lighting (neutral daylight — tiles have baked detail) ─
+const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+sunLight.position.set(200, 400, 100);
 scene.add(sunLight);
 
-const ambientLight = new THREE.AmbientLight(0x301850, 1.0);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 
-const fillLight = new THREE.HemisphereLight(0x8844aa, 0xc87020, 0.4);
+const fillLight = new THREE.HemisphereLight(0x87CEEB, 0x8B7355, 0.4);
 scene.add(fillLight);
 
 // ── World modules (google tiles deferred to startMode) ──
-const sky = new Sky(scene);
 const wind = new Wind(scene);
 const particles = new Particles(scene);
 let googleTiles = null;
@@ -126,7 +124,6 @@ function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
 
-  sky.update(dt);
   wind.update(dt);
   particles.update(dt, carpet.position, carpet.velocity, carpet.speed, carpet.MAX_SPEED);
   carpet.update(dt);
