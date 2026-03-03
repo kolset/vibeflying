@@ -6,10 +6,6 @@ const SEGS = 32;           // 33×33 vertices — fast to compute
 const ELEVATION_SCALE = 2.0;
 const MAX_CONCURRENT = 6;
 
-// Dubai, UAE
-const CENTER_LAT = 25.1972;
-const CENTER_LNG = 55.2796;
-
 function latLngToTile(lat, lng, z) {
   const n = Math.pow(2, z);
   const x = Math.floor((lng + 180) / 360 * n);
@@ -25,23 +21,24 @@ function tileMeters(z) {
 }
 
 export class MapTerrain {
-  constructor(scene) {
+  constructor(scene, lat = 59.9139, lng = 10.7522, placeholderColor = 0x5C7A5C) {
     this.scene = scene;
     this.group = new THREE.Group();
     this.scene.add(this.group);
 
     this.tileSizeM = tileMeters(ZOOM); // ~4891m per tile
-    this.centerTile = latLngToTile(CENTER_LAT, CENTER_LNG, ZOOM);
+    this.centerTile = latLngToTile(lat, lng, ZOOM);
     this.tiles = new Map();
     this.loadQueue = [];
     this.activeLoads = 0;
+    this.placeholderColor = placeholderColor;
 
     this._initGrid();
   }
 
   _initGrid() {
     const half = Math.floor(GRID / 2);
-    // Sort center-outward so Dubai center loads first
+    // Sort center-outward so center loads first
     const order = [];
     for (let dj = -half; dj <= half; dj++) {
       for (let di = -half; di <= half; di++) {
@@ -62,7 +59,7 @@ export class MapTerrain {
     geo.rotateX(-Math.PI / 2);
 
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xC8A97A,  // sandy Dubai placeholder
+      color: this.placeholderColor,
       roughness: 0.85,
     });
 
@@ -107,7 +104,6 @@ export class MapTerrain {
 
   // THREE.TextureLoader handles CORS correctly — no fetch/blob needed
   _loadTexture(tx, ty) {
-    // server.arcgisonline.com is the CDN (correct domain); URL is z/row/col (y before x)
     const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${ZOOM}/${ty}/${tx}`;
     return new Promise((resolve) => {
       const loader = new THREE.TextureLoader();
@@ -118,7 +114,7 @@ export class MapTerrain {
           resolve(tex);
         },
         undefined,
-        () => resolve(null)  // fail → keep sandy placeholder
+        () => resolve(null)  // fail → keep placeholder
       );
     });
   }
@@ -171,6 +167,17 @@ export class MapTerrain {
     const snap = this.tileSizeM * GRID;
     this.group.position.x = Math.round(playerPos.x / snap) * snap;
     this.group.position.z = Math.round(playerPos.z / snap) * snap;
+  }
+
+  dispose() {
+    for (const [, entry] of this.tiles) {
+      if (entry.mesh.material.map) entry.mesh.material.map.dispose();
+      entry.mesh.material.dispose();
+      entry.mesh.geometry.dispose();
+    }
+    this.scene.remove(this.group);
+    this.tiles.clear();
+    this.loadQueue = [];
   }
 
   heightAt() { return 0; }

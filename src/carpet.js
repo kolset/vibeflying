@@ -47,7 +47,7 @@ export class Carpet {
 
     // Physics state
     this.position = new THREE.Vector3(0, 80, 0);
-    this.velocity = new THREE.Vector3(0, 0, 8); // start moving forward
+    this.velocity = new THREE.Vector3(0, 0, 25); // start moving forward
     this.speed = 0;
     this.pitch = 0;   // nose up/down angle (radians)
     this.yaw = 0;     // heading angle
@@ -62,18 +62,19 @@ export class Carpet {
     this.boostTimer = 0;
 
     // Config
-    this.DRAG        = 0.22;
+    this.DRAG        = 0.07;
     this.GRAVITY     = 4.0;
-    this.STEER_SPEED = 1.2;
+    this.STEER_SPEED = 1.4;
     this.PITCH_SPEED = 0.8;
-    this.MAX_SPEED   = 150;
-    this.WIND_BOOST  = 45;
+    this.MAX_SPEED   = 400;
+    this.WIND_BOOST  = 120;
     this.CAM_DIST    = 22;
     this.BASE_FOV    = 65;
 
     this._buildMesh();
     this._buildCarpetGlow();
     this._initJoystick();
+    this._loadCountryFlag();
   }
 
   _buildCarpetTexture() {
@@ -218,6 +219,31 @@ export class Carpet {
     this.group.add(this.glow);
   }
 
+  async _loadCountryFlag() {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      const cc = (data.country_code || '').toLowerCase();
+      if (!cc) return;
+
+      const loader = new THREE.TextureLoader();
+      loader.load(
+        `https://flagcdn.com/w320/${cc}.png`,
+        (texture) => {
+          if (!this.flagMesh) return;
+          texture.colorSpace = THREE.SRGBColorSpace;
+          this.flagMesh.material.map = texture;
+          this.flagMesh.material.color.set(0xffffff); // no tint
+          this.flagMesh.material.emissive.set(0x111111);
+          this.flagMesh.material.emissiveIntensity = 0.15;
+          this.flagMesh.material.needsUpdate = true;
+        }
+      );
+    } catch {
+      // Keep default red flag on any error
+    }
+  }
+
   _initJoystick() {
     // nipplejs mobile joystick
     const zone = document.getElementById('joystick-zone');
@@ -244,7 +270,7 @@ export class Carpet {
 
   reset() {
     this.position.set(0, 80, 0);
-    this.velocity.set(0, 0, 8);
+    this.velocity.set(0, 0, 25);
     this.yaw = 0;
     this.pitch = 0;
     this.roll = 0;
@@ -288,14 +314,14 @@ export class Carpet {
 
     // Propulsion: pitch down = speed gain, pitch up = altitude gain
     const pitchFactor = -this.pitch; // nose down = speed
-    this.velocity.addScaledVector(fwd, (3.0 + pitchFactor * 6) * dt);
+    this.velocity.addScaledVector(fwd, (12.0 + pitchFactor * 18) * dt);
 
     // Gravity on vertical component
     this.velocity.y -= this.GRAVITY * dt;
 
     // Altitude maintenance: speed gives lift
     const speed = new THREE.Vector3(this.velocity.x, 0, this.velocity.z).length();
-    const lift  = Math.max(0, speed - 4) * 0.25;
+    const lift  = Math.max(0, speed - 8) * 0.5;
     this.velocity.y += lift * dt;
 
     // Wind boost

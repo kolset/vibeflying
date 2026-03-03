@@ -51,6 +51,42 @@
     }
     .menu-btn.primary { background: rgba(212,175,55,0.2); border-color: #D4AF37; }
 
+    /* Location picker */
+    #location-picker { margin-bottom: 1.5rem; text-align: center; }
+    .loc-label {
+      color: rgba(212,175,55,0.5);
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+    .loc-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.35rem;
+      max-width: 380px;
+      margin: 0 auto;
+    }
+    .loc-btn {
+      background: rgba(212,175,55,0.07);
+      border: 1px solid rgba(212,175,55,0.2);
+      color: rgba(212,175,55,0.65);
+      padding: 0.3rem 0.7rem;
+      font-size: 0.8rem;
+      font-family: inherit;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+      letter-spacing: 0.03em;
+    }
+    .loc-btn:hover { background: rgba(212,175,55,0.16); color: #D4AF37; }
+    .loc-btn.active {
+      background: rgba(212,175,55,0.22);
+      border-color: rgba(212,175,55,0.7);
+      color: #D4AF37;
+    }
+
     /* HUD */
     #hud {
       position: fixed; inset: 0; pointer-events: none;
@@ -170,6 +206,20 @@
   <div id="menu">
     <h1>✦ Vibeflying</h1>
     <p class="subtitle">Magic Carpet Adventure</p>
+    <div id="location-picker">
+      <div class="loc-label">Location</div>
+      <div class="loc-grid">
+        <button class="loc-btn active" data-loc="oslo"    onclick="window.setLocation('oslo')">🇳🇴 Oslo</button>
+        <button class="loc-btn"        data-loc="dubai"   onclick="window.setLocation('dubai')">🇦🇪 Dubai</button>
+        <button class="loc-btn"        data-loc="tokyo"   onclick="window.setLocation('tokyo')">🇯🇵 Tokyo</button>
+        <button class="loc-btn"        data-loc="newyork" onclick="window.setLocation('newyork')">🇺🇸 New York</button>
+        <button class="loc-btn"        data-loc="london"  onclick="window.setLocation('london')">🇬🇧 London</button>
+        <button class="loc-btn"        data-loc="sydney"  onclick="window.setLocation('sydney')">🇦🇺 Sydney</button>
+        <button class="loc-btn"        data-loc="paris"   onclick="window.setLocation('paris')">🇫🇷 Paris</button>
+        <button class="loc-btn"        data-loc="rio"     onclick="window.setLocation('rio')">🇧🇷 Rio</button>
+      </div>
+    </div>
+
     <button class="menu-btn primary" onclick="window.startMode('explore')">✦ Explore</button>
     <button class="menu-btn" onclick="window.startMode('race')">⏱ Daily Race</button>
     <button class="menu-btn" onclick="window.startMode('tutorial')">◎ Tutorial</button>
